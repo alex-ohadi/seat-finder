@@ -79,28 +79,60 @@ const SIDE_SEAT_FLOOR = 0.2;
 
 /**
  * Normalised position of every seat, 0..1 on each axis:
- *   nx = 0 far left, 0.5 dead centre, 1 far right
- *   ny = 0 front row (nearest the screen), 1 back row
+ *   nx     = 0 far left, 0.5 dead centre, 1 far right (measured across the
+ *            whole room, because "centred" means lined up with the screen)
+ *   ny     = 0 front of the room, 1 back of the room
+ *   areaNy = 0 front of *its own seating area*, 1 back of that area
  *
  * Auditoriums differ wildly in size and shape, so a preferred area is only
  * portable between them in this normalised space.
+ *
+ * Why areaNy exists: a room can be split into stacked areas (Regal LA Live is
+ * a Reserved floor at y 0-653 and a Balcony at y 801-1202). Measured across the
+ * whole room the ideal depth lands inside the balcony, so orchestra seats were
+ * capped at 72% of the depth score while balcony seats reached 99% — every
+ * recommendation there was a balcony seat, and mid-orchestra could never win.
+ * Depth is therefore judged within an area, since each area has its own
+ * front-to-back geometry.
  */
 export function normalisePositions(seatMap) {
   const seats = seatMap?.seats ?? [];
   if (seats.length === 0) return new Map();
 
-  const xs = seats.map((s) => s.x + (s.width ?? 0) / 2);
-  const ys = seats.map((s) => s.y + (s.height ?? 0) / 2);
+  const centreX = (s) => s.x + (s.width ?? 0) / 2;
+  const centreY = (s) => s.y + (s.height ?? 0) / 2;
+
+  const xs = seats.map(centreX);
+  const ys = seats.map(centreY);
   const minX = Math.min(...xs);
   const spanX = Math.max(...xs) - minX;
   const minY = Math.min(...ys);
   const spanY = Math.max(...ys) - minY;
 
+  // Front-to-back extent of each seating area.
+  const areaBounds = new Map();
+  for (const seat of seats) {
+    const code = seat.areaCode || '';
+    const y = centreY(seat);
+    const b = areaBounds.get(code);
+    if (b) {
+      b.min = Math.min(b.min, y);
+      b.max = Math.max(b.max, y);
+    } else {
+      areaBounds.set(code, { min: y, max: y });
+    }
+  }
+
   const pos = new Map();
   seats.forEach((seat, i) => {
+    const ny = spanY > 0 ? (ys[i] - minY) / spanY : 0.5;
+    const bounds = areaBounds.get(seat.areaCode || '');
+    const areaSpan = bounds ? bounds.max - bounds.min : 0;
     pos.set(seat.id, {
       nx: spanX > 0 ? (xs[i] - minX) / spanX : 0.5,
-      ny: spanY > 0 ? (ys[i] - minY) / spanY : 0.5,
+      ny,
+      // A one-row area has no depth of its own; fall back to the room.
+      areaNy: areaSpan > 0 ? (ys[i] - bounds.min) / areaSpan : ny,
     });
   });
   return pos;
@@ -139,7 +171,9 @@ export function scoreSeats(positions, seatIds) {
   if (pts.length === 0) return 0;
 
   const nx = pts.reduce((a, p) => a + p.nx, 0) / pts.length;
-  const ny = pts.reduce((a, p) => a + p.ny, 0) / pts.length;
+  // Depth is judged within the seating area, so a mid-orchestra seat competes
+  // with a mid-balcony one instead of losing to it by construction.
+  const ny = pts.reduce((a, p) => a + (p.areaNy ?? p.ny), 0) / pts.length;
 
   const depth = FRONT_ROW_FLOOR + (1 - FRONT_ROW_FLOOR) * depthScore(ny);
   const centred = SIDE_SEAT_FLOOR + (1 - SIDE_SEAT_FLOOR) * centreScore(nx);

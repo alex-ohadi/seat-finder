@@ -86,6 +86,18 @@ top recommendation slot.
 The peak sits at 65% of the way back. Falloff toward the screen is steeper than
 linear so the whole front section scores badly, not just row A.
 
+**Depth is measured within a seating area, not across the room.** A room can be
+split into stacked areas — Regal LA Live is a Reserved floor at map y 0-653 and
+a Balcony at y 801-1202. Measured across the whole room the ideal depth lands
+inside the balcony, so orchestra seats were capped at 72% of the depth score
+while balcony seats reached 99%: every recommendation there was a balcony seat
+and mid-orchestra could never win. Judged per area, the same room now tops out
+at 97 (mid-orchestra) and 93 (mid-balcony). Horizontal centring stays
+room-relative, since "centred" means lined up with the screen.
+
+Checkout makes you choose an area before it shows any seats, so every pick
+names its area and carries that area's ticket price.
+
 **Preferred area.** Drag a box over a real seat map to restrict results to part
 of the room. It is stored in normalised 0-1 coordinates, never seat ids, so one
 selection applies to every auditorium regardless of size or shape.

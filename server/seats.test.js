@@ -297,6 +297,96 @@ test('normalised positions put the front row at ny=0 and the back at ny=1', () =
   assert.equal(pos.get('A2').nx, 1);
 });
 
+/* ---------------- stacked seating areas ---------------- */
+
+/**
+ * A room shaped like Regal LA Live: a Reserved floor, then a physical gap,
+ * then a Balcony sitting well behind it in map coordinates.
+ */
+function twoAreaHouse() {
+  const rows = [];
+  for (let r = 1; r <= 6; r++) {
+    rows.push(
+      makeRow({ row: r, prefix: `F${r}`, statuses: 'AAAAA', links: 'none' }).map((s) => ({
+        ...s,
+        y: (r - 1) * 30,
+        areaCode: 'reserved1',
+      })),
+    );
+  }
+  for (let r = 1; r <= 6; r++) {
+    rows.push(
+      makeRow({ row: 10 + r, prefix: `B${r}`, statuses: 'AAAAA', links: 'none' }).map((s) => ({
+        ...s,
+        y: 800 + (r - 1) * 30,
+        areaCode: 'reserved2',
+      })),
+    );
+  }
+  return {
+    seats: rows.flat(),
+    areas: [
+      { code: 'reserved1', id: '1', name: 'Reserved' },
+      { code: 'reserved2', id: '2', name: 'Balcony' },
+    ],
+  };
+}
+
+test('REGRESSION: depth is judged within a seating area, not across the room', () => {
+  // Measured across the whole room the balcony swallows the ideal depth, and
+  // no orchestra seat can compete however well placed it is.
+  const map = twoAreaHouse();
+  const pos = normalisePositions(map);
+
+  const orchestraBack = pos.get('F5C1' in {} ? '' : 'F51'); // row 5 of the floor
+  assert.ok(orchestraBack.areaNy > 0.7, 'a back-of-orchestra seat is deep within its own area');
+  assert.ok(orchestraBack.ny < 0.5, 'even though it sits in the front half of the room');
+
+  const balconyFront = pos.get('B11');
+  assert.equal(balconyFront.areaNy, 0, 'the first balcony row is the front of the balcony');
+  assert.ok(balconyFront.ny > 0.5, 'despite being past halfway across the room');
+});
+
+test('neither seating area is structurally advantaged over the other', () => {
+  // Both areas here have identical geometry, so the best seat in each must
+  // score the same. Measuring depth across the whole room instead capped the
+  // orchestra at 72% of the depth score while the balcony reached 99%, which
+  // made every recommendation a balcony seat regardless of placement.
+  const { runs } = findAdjacentRuns(twoAreaHouse(), 2);
+  const scores = (code) => runs.filter((r) => r.areaCode === code).map((r) => r.score);
+
+  const bestOrchestra = Math.max(...scores('reserved1'));
+  const bestBalcony = Math.max(...scores('reserved2'));
+  assert.equal(
+    bestOrchestra,
+    bestBalcony,
+    `identical geometry must score identically: orchestra ${bestOrchestra}, balcony ${bestBalcony}`,
+  );
+
+  const worstBalcony = Math.min(...scores('reserved2'));
+  assert.ok(
+    bestOrchestra > worstBalcony,
+    `a good orchestra seat ${bestOrchestra} must beat a bad balcony seat ${worstBalcony}`,
+  );
+});
+
+test('runs report the seating area you must choose at checkout', () => {
+  const { runs } = findAdjacentRuns(twoAreaHouse(), 2);
+  assert.ok(runs.every((r) => r.area === 'Reserved' || r.area === 'Balcony'));
+  assert.ok(runs.some((r) => r.area === 'Reserved'));
+  assert.ok(runs.some((r) => r.area === 'Balcony'));
+});
+
+test('a single-area room is unaffected by the per-area rule', () => {
+  const rows = [1, 2, 3, 4, 5].map((r) =>
+    makeRow({ row: r, prefix: String.fromCharCode(64 + r), statuses: 'AAAAA', links: 'none' }).map(
+      (s) => ({ ...s, y: (r - 1) * 30 }),
+    ),
+  );
+  const pos = normalisePositions(mapOf(...rows));
+  for (const p of pos.values()) assert.equal(p.areaNy, p.ny);
+});
+
 /* ---------------- preferred area ---------------- */
 
 test('a preferred area excludes pairs outside it', () => {
