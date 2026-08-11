@@ -250,6 +250,10 @@ body {
   font-size: 13px;
   padding: 4px 2px 14px;
 }
+.resultbar__hint {
+  font-size: 12px;
+  opacity: 0.8;
+}
 
 .linkbtn {
   background: none;
@@ -378,6 +382,105 @@ body {
   min-width: 22px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- theater scrubber panels ---------- */
+.ts {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.ts--rec {
+  border-color: rgba(245, 166, 35, 0.5);
+}
+.ts__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.ts__head:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.ts__toggle {
+  color: var(--muted);
+  font-size: 12px;
+  width: 12px;
+  flex-shrink: 0;
+}
+.ts__ident {
+  flex: 1;
+  min-width: 0;
+}
+.ts__name {
+  margin: 0;
+  font-size: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ts__rank {
+  color: var(--accent);
+  font-weight: 800;
+}
+.ts__dist {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ts__summary {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+.ts__summary strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ts__badge {
+  flex-shrink: 0;
+  min-width: 38px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ts__badge.is-good {
+  background: var(--good);
+  color: #062018;
+}
+.ts__badge.is-ok {
+  background: var(--accent);
+  color: #1a1205;
+}
+.ts__badge.is-poor {
+  background: var(--panel-2);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.ts__body {
+  padding: 0 16px 10px;
+  border-top: 1px solid var(--line);
+}
+.ts__body > .tl__now {
+  margin-top: 14px;
+}
+.ts__single {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  margin: 14px 0 6px;
+}
+.recs__heading--muted {
+  color: var(--muted);
 }
 
 /* ---------- theater timeline ---------- */

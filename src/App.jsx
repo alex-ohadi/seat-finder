@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Controls from './components/Controls.jsx';
-import ShowtimeCard from './components/ShowtimeCard.jsx';
+import TheaterScrubber from './components/TheaterScrubber.jsx';
 import ZonePicker from './components/ZonePicker.jsx';
-import Timeline from './components/Timeline.jsx';
-import { DEFAULT_CONFIG, search, formatMinutes, formatDateHeading, describeZone } from './api.js';
+import { DEFAULT_CONFIG, search, formatMinutes, describeZone } from './api.js';
 import './styles.css';
 
 export default function App() {
@@ -12,9 +11,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [onlyMatches, setOnlyMatches] = useState(true);
   const [zoneOpen, setZoneOpen] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
   const inflight = useRef(null);
 
   const run = useCallback(async (config) => {
@@ -39,21 +36,15 @@ export default function App() {
     run(DEFAULT_CONFIG);
   }, [run]);
 
-  // Picking a theater is the whole reason the timeline exists, so open it.
-  useEffect(() => {
-    setTimelineOpen(Boolean(applied.theaterId));
-  }, [applied.theaterId]);
-
   const showtimes = result?.showtimes ?? [];
-  const recommendedKeys = result?.recommended ?? [];
-  const recommended = recommendedKeys
-    .map((key) => showtimes.find((s) => s.key === key))
-    .filter(Boolean);
+  const minScore = result?.stats?.minRecommendableSeatScore ?? 25;
 
-  const visible = onlyMatches
-    ? showtimes.filter((s) => (s.seats?.optionCount ?? 0) > 0)
-    : showtimes;
-  const byDate = groupBy(visible, (s) => s.startsAt?.date ?? 'unknown');
+  // One panel per theater, each scrubbable across every date in range. Split so
+  // theaters that can actually seat you well lead, and the rest stay reachable
+  // underneath rather than being hidden.
+  const theaters = groupByTheater(showtimes);
+  const goodTheaters = theaters.filter((t) => t.bestScore >= minScore);
+  const otherTheaters = theaters.filter((t) => t.bestScore < minScore);
 
   // The seat map to draw the preferred-area box on: whichever showing has the
   // most seat data, so the layout is representative.
@@ -88,7 +79,6 @@ export default function App() {
         onSearch={() => run(draft)}
         onReset={() => {
           setDraft(DEFAULT_CONFIG);
-          setTimelineOpen(false);
           run(DEFAULT_CONFIG);
         }}
       />
@@ -118,27 +108,8 @@ export default function App() {
           >
             seats: {describeZone(draft.zone)}
           </button>
-          {applied.theaterId && (
-            <>
-              {' · '}
-              <button
-                type="button"
-                className="linkbtn"
-                onClick={() => setTimelineOpen(!timelineOpen)}
-              >
-                {timelineOpen ? 'hide timeline' : 'scrub seats over time'}
-              </button>
-            </>
-          )}
         </span>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={onlyMatches}
-            onChange={(e) => setOnlyMatches(e.target.checked)}
-          />
-          <span>Only showings with {applied.partySize} together</span>
-        </label>
+        <span className="resultbar__hint">Every theater below scrubs across all dates</span>
       </div>
 
       {zoneOpen && zoneSample && (
@@ -155,57 +126,9 @@ export default function App() {
         />
       )}
 
-      {applied.theaterId && timelineOpen && (
-        <Timeline
-          config={applied}
-          theaterId={applied.theaterId}
-          onClose={() => setTimelineOpen(false)}
-        />
-      )}
-
-      {result && !loading && (
-        <section className="recs">
-          <h2 className="recs__heading">
-            Recommended
-            <span className="recs__hint">good seats first, then nearest, your time, soonest</span>
-          </h2>
-
-          {recommended.length === 0 ? (
-            <div className="empty">
-              <p>
-                <strong>Nothing here is worth recommending.</strong>
-              </p>
-              <p>
-                Every showing in range has only front-row or far-side seats left. Try a wider time
-                window, more days, or a bigger distance.
-              </p>
-            </div>
-          ) : (
-            <>
-              {recommended.map((s, i) => (
-                <ShowtimeCard
-                  key={s.key}
-                  showtime={s}
-                  partySize={applied.partySize}
-                  rank={i + 1}
-                  showDate
-                />
-              ))}
-              {recommended.length < 3 && (
-                <p className="recs__note">
-                  Only {recommended.length} showing{recommended.length === 1 ? '' : 's'} had seats
-                  worth recommending. The rest are listed below — their best remaining seats are
-                  front-row or far-side.
-                </p>
-              )}
-            </>
-          )}
-        </section>
-      )}
-
       {loading && !result && <p className="empty">Scanning showtimes and seat maps…</p>}
 
-      {result && visible.length === 0 && !loading && (
+      {result && theaters.length === 0 && !loading && (
         <div className="empty">
           <p>
             <strong>Nothing matched.</strong>
@@ -213,25 +136,47 @@ export default function App() {
           <p>
             {result.stats.showtimesFound === 0
               ? 'No showings of that movie in that format nearby — try widening the distance or switching format.'
-              : onlyMatches
-                ? `Found ${result.stats.showtimesInWindow} showing(s) in your time window, but none with ${applied.partySize} seats together. Untick the filter above to see them anyway.`
-                : 'No showings fell inside that time window — try widening it.'}
+              : 'No showings fell inside that time window — try widening it.'}
           </p>
         </div>
       )}
 
       <main className={loading ? 'results is-loading' : 'results'}>
-        {[...byDate.entries()].map(([date, items]) => (
-          <section key={date} className="day">
-            <h2 className="day__heading">
-              {formatDateHeading(date)}
-              <span className="day__count">{items.length} showing{items.length === 1 ? '' : 's'}</span>
+        {goodTheaters.length > 0 && (
+          <section className="recs">
+            <h2 className="recs__heading">
+              Recommended
+              <span className="recs__hint">
+                good seats first, then nearest, your time, soonest
+              </span>
             </h2>
-            {items.map((s) => (
-              <ShowtimeCard key={s.key} showtime={s} partySize={applied.partySize} />
+            {goodTheaters.map((t, i) => (
+              <TheaterScrubber
+                key={t.id}
+                theater={t}
+                partySize={applied.partySize}
+                rank={i + 1}
+                defaultOpen={i === 0}
+              />
             ))}
           </section>
-        ))}
+        )}
+
+        {otherTheaters.length > 0 && (
+          <section className="recs">
+            <h2 className="recs__heading recs__heading--muted">
+              Other theaters
+              <span className="recs__hint">
+                {goodTheaters.length === 0
+                  ? 'nothing here has good seats left — scrub to check other days'
+                  : 'best remaining seats are front-row or far-side · still scrubbable'}
+              </span>
+            </h2>
+            {otherTheaters.map((t) => (
+              <TheaterScrubber key={t.id} theater={t} partySize={applied.partySize} />
+            ))}
+          </section>
+        )}
       </main>
 
       {result && (
@@ -252,12 +197,48 @@ function Stat({ label, value, highlight }) {
   );
 }
 
-function groupBy(items, keyOf) {
+/**
+ * Collapse the flat showtime list into one entry per theater, chronological
+ * within each, carrying the best seats that theater can offer anywhere in the
+ * range and which step they are on.
+ */
+function groupByTheater(showtimes) {
   const map = new Map();
-  for (const item of items) {
-    const key = keyOf(item);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(item);
+  for (const s of showtimes) {
+    const id = s.theaterId ?? s.theaterName;
+    if (!map.has(id)) {
+      map.set(id, {
+        id,
+        name: s.theaterName,
+        distance: s.distance,
+        chain: s.chain,
+        showtimes: [],
+      });
+    }
+    map.get(id).showtimes.push(s);
   }
-  return map;
+
+  const entries = [...map.values()];
+  for (const t of entries) {
+    t.showtimes.sort((a, b) => (a.startsAt?.iso ?? '').localeCompare(b.startsAt?.iso ?? ''));
+
+    let bestIndex = 0;
+    let bestScore = 0;
+    t.showtimes.forEach((s, i) => {
+      const score = s.seats?.bestScore ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    });
+
+    t.bestScore = bestScore;
+    t.bestIndex = bestIndex;
+    t.bestSeats = t.showtimes[bestIndex]?.seats?.options?.[0]?.seats ?? null;
+    // Rank theaters by their best showing's overall score, not raw seat quality,
+    // so distance and timing still break ties between comparable rooms.
+    t.bestHot = Math.max(0, ...t.showtimes.map((s) => s.hot?.score ?? 0));
+  }
+
+  return entries.sort((a, b) => b.bestHot - a.bestHot || a.distance - b.distance);
 }
