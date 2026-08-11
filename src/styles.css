@@ -406,6 +406,13 @@ body {
   gap: 12px;
   margin-bottom: 14px;
 }
+.tl__head-actions,
+.tl__msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .tl__title {
   margin: 0;
   font-size: 17px;

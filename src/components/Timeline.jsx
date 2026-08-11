@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import SeatMap from './SeatMap.jsx';
-import { fetchTimeline, fetchShowtime, formatDateHeading } from '../api.js';
+import { fetchTimeline, fetchShowtime, formatDateHeading, formatMinutes } from '../api.js';
 
 /**
  * Scrub through one theater's showtimes across the searched days and watch the
  * room fill up.
+ *
+ * The scrubber honours the time-of-day filter, so it steps only through
+ * showings you would actually consider. The API still returns the full day, so
+ * "show every time" is a local toggle needing no refetch.
  *
  * Seat maps are fetched per step and kept in a local cache, so dragging back
  * and forth over ground you have already covered is instant. The step either
@@ -16,6 +20,7 @@ export default function Timeline({ config, theaterId, onClose }) {
   const [index, setIndex] = useState(0);
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState(null);
+  const [showAllTimes, setShowAllTimes] = useState(false);
   const cache = useRef(new Map());
 
   // Config values that change what a seat map means, so the cache must drop.
@@ -31,10 +36,7 @@ export default function Timeline({ config, theaterId, onClose }) {
     fetchTimeline(config, theaterId, controller.signal)
       .then((data) => {
         setList({ status: 'ready', ...data });
-        // Open on the first showing inside the chosen time window, since that
-        // is the one the rest of the page is about.
-        const firstInWindow = data.showtimes.findIndex((s) => s.inWindow);
-        setIndex(firstInWindow >= 0 ? firstInWindow : 0);
+        setIndex(0);
       })
       .catch((err) => {
         if (err.name !== 'AbortError') setList({ status: 'error', error: err.message });
@@ -48,7 +50,20 @@ export default function Timeline({ config, theaterId, onClose }) {
     setDetail(null);
   }, [detailKey]);
 
-  const showtimes = list.status === 'ready' ? list.showtimes : [];
+  const everything = list.status === 'ready' ? list.showtimes : [];
+
+  // Honour the time-of-day filter unless explicitly told otherwise.
+  const showtimes = useMemo(
+    () => (showAllTimes ? everything : everything.filter((s) => s.inWindow)),
+    [everything, showAllTimes],
+  );
+  const hiddenCount = everything.length - showtimes.length;
+
+  // Toggling the filter shortens the list, so the knob must not point past it.
+  useEffect(() => {
+    setIndex((i) => Math.min(i, Math.max(0, showtimes.length - 1)));
+  }, [showtimes.length]);
+
   const current = showtimes[index] ?? null;
 
   useEffect(() => {
@@ -90,10 +105,25 @@ export default function Timeline({ config, theaterId, onClose }) {
   if (showtimes.length === 0)
     return (
       <div className="tl tl--msg">
-        No showings of this movie at that theater in the selected days.
-        <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
-          Close
-        </button>
+        <span>
+          {everything.length === 0
+            ? 'No showings of this movie at that theater in the selected days.'
+            : `None of this theater's ${everything.length} showings start between ${formatMinutes(config.startTime)} and ${formatMinutes(config.endTime)}.`}
+        </span>
+        <span className="tl__msg-actions">
+          {everything.length > 0 && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setShowAllTimes(true)}
+            >
+              Show every time
+            </button>
+          )}
+          <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+            Close
+          </button>
+        </span>
       </div>
     );
 
@@ -113,13 +143,32 @@ export default function Timeline({ config, theaterId, onClose }) {
         <div>
           <h2 className="tl__title">{list.theater?.name}</h2>
           <p className="tl__sub">
-            {showtimes.length} showings over {dayStarts.length} day
-            {dayStarts.length === 1 ? '' : 's'} · drag to watch the room fill up
+            {showtimes.length} showing{showtimes.length === 1 ? '' : 's'} over {dayStarts.length} day
+            {dayStarts.length === 1 ? '' : 's'}
+            {showAllTimes
+              ? ' · every start time'
+              : ` · ${formatMinutes(config.startTime)}–${formatMinutes(config.endTime)} starts only`}
+            {' · drag to watch the room fill up'}
           </p>
         </div>
-        <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
-          Close
-        </button>
+        <div className="tl__head-actions">
+          {hiddenCount > 0 || showAllTimes ? (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={showAllTimes}
+                onChange={(e) => setShowAllTimes(e.target.checked)}
+              />
+              <span>
+                Show every time
+                {!showAllTimes && hiddenCount > 0 ? ` (+${hiddenCount})` : ''}
+              </span>
+            </label>
+          ) : null}
+          <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </header>
 
       <div className="tl__now">
