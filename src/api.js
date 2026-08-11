@@ -27,6 +27,8 @@ export const DEFAULT_CONFIG = {
   priority: 65,
   format: 'imax-70mm',
   includeAccessible: false,
+  /** Restrict to one theater; '' means all of them. */
+  theaterId: '',
   /** Preferred area in normalised 0..1 coords, or null for "anywhere". */
   zone: null,
 };
@@ -43,6 +45,35 @@ export async function search(config, signal) {
   const res = await fetch(`/api/search?${params}`, { signal });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error ?? `Search failed (${res.status})`);
+  return body;
+}
+
+/** Every showtime at one theater across the date range, chronological. */
+export async function fetchTimeline(config, theaterId, signal) {
+  const { zone, ...rest } = config;
+  const params = new URLSearchParams(Object.entries(rest).map(([k, v]) => [k, String(v)]));
+  params.set('theaterId', theaterId);
+  const res = await fetch(`/api/timeline?${params}`, { signal });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? `Timeline failed (${res.status})`);
+  return body;
+}
+
+/** One showtime's seat map and its adjacency analysis, in a single request. */
+export async function fetchShowtime(hash, config, signal) {
+  const params = new URLSearchParams({
+    partySize: String(config.partySize),
+    includeAccessible: String(config.includeAccessible),
+  });
+  if (config.zone) {
+    params.set('zoneX0', config.zone.x0);
+    params.set('zoneY0', config.zone.y0);
+    params.set('zoneX1', config.zone.x1);
+    params.set('zoneY1', config.zone.y1);
+  }
+  const res = await fetch(`/api/showtime/${encodeURIComponent(hash)}?${params}`, { signal });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error ?? `Showtime failed (${res.status})`);
   return body;
 }
 

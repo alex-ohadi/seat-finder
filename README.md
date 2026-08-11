@@ -26,6 +26,9 @@ API, no key, and no headless browser involved:
 | `GET /napi/theaterswithshowtimes?zipCode=&date=&page=&limit=` | Theaters near a ZIP, with distance, formats and showtimes |
 | `GET /napi/seatMap/<showtimeHashCode>` | Live seat map: every seat with status, type and geometry |
 
+This app exposes them as `/api/search`, `/api/timeline` (one theater across
+days), `/api/showtime/:hash` (map + analysis in one trip) and `/api/seatmap/:hash`.
+
 The two join on `showtimeHashCode`, which the showtimes response already
 carries — no scraping of HTML, and no ticket-flow session to establish.
 
@@ -86,6 +89,19 @@ linear so the whole front section scores badly, not just row A.
 **Preferred area.** Drag a box over a real seat map to restrict results to part
 of the room. It is stored in normalised 0-1 coordinates, never seat ids, so one
 selection applies to every auditorium regardless of size or shape.
+
+## Theater timeline
+
+Pick a theater in the filters and a scrubber appears: drag the knob through
+every showing at that theater across the searched days and watch the room fill
+up, with open/filled counts and the best available pair at each step.
+
+It deliberately ignores the time-of-day window — the point is to see whole days,
+and clipping to 5-9pm would leave holes in the thing you are scrubbing. Ticks
+under the slider mark each showing; green ones are inside your window.
+
+Seat maps are cached per step and the neighbouring steps are prefetched, so a
+slow drag stays continuous instead of flashing through loading states.
 
 ## Recommendations
 

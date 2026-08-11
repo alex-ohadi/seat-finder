@@ -42,9 +42,16 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/search') {
       return json(res, 200, await search(url.searchParams));
     }
+    if (url.pathname === '/api/timeline') {
+      return json(res, 200, await timeline(url.searchParams));
+    }
     if (url.pathname.startsWith('/api/seatmap/')) {
       const hash = decodeURIComponent(url.pathname.slice('/api/seatmap/'.length));
       return json(res, 200, await cachedSeatMap(hash));
+    }
+    if (url.pathname.startsWith('/api/showtime/')) {
+      const hash = decodeURIComponent(url.pathname.slice('/api/showtime/'.length));
+      return json(res, 200, await showtimeDetail(hash, url.searchParams));
     }
     return json(res, 404, { error: 'not found' });
   } catch (err) {
@@ -53,12 +60,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-async function search(params) {
-  const config = readConfig(params);
-  const dates = dateRange(config.startDate, config.days);
-
-  // One showtime request per day, in parallel. A failed day must not sink the
-  // whole search, so failures are collected and reported instead of thrown.
+/**
+ * Every matching showtime across the date range, one request per day in
+ * parallel. A failed day is reported rather than sinking the whole search.
+ */
+async function collectShowtimes(config, dates) {
   const dayErrors = [];
   const perDay = await Promise.all(
     dates.map(async (date) => {
@@ -78,8 +84,21 @@ async function search(params) {
       }
     }),
   );
+  return { all: perDay.flat(), dayErrors };
+}
 
-  const all = perDay.flat();
+async function search(params) {
+  const config = readConfig(params);
+  const dates = dateRange(config.startDate, config.days);
+  const { all: everything, dayErrors } = await collectShowtimes(config, dates);
+
+  // The theater filter narrows the results; the theater list itself is built
+  // from the unfiltered set so you can still switch to a different one.
+  const theaters = theaterOptions(everything);
+  const all = config.theaterId
+    ? everything.filter((s) => s.theaterId === config.theaterId)
+    : everything;
+
   const inWindow = all.filter((s) => withinWindow(s, config));
 
   // Seat maps are the expensive call, so only in-window showtimes get one.
@@ -146,6 +165,7 @@ async function search(params) {
   return {
     config,
     recommended,
+    theaters,
     generatedAt: new Date().toISOString(),
     stats: {
       datesSearched: dates.length,
@@ -158,6 +178,86 @@ async function search(params) {
       dayErrors,
     },
     showtimes: analysed,
+  };
+}
+
+/** Distinct theaters in a result set, nearest first, for the filter dropdown. */
+function theaterOptions(showtimes) {
+  const byId = new Map();
+  for (const s of showtimes) {
+    if (!s.theaterId) continue;
+    const seen = byId.get(s.theaterId);
+    if (seen) seen.showtimeCount++;
+    else
+      byId.set(s.theaterId, {
+        id: s.theaterId,
+        name: s.theaterName,
+        distance: s.distance,
+        showtimeCount: 1,
+      });
+  }
+  return [...byId.values()].sort((a, b) => a.distance - b.distance);
+}
+
+/**
+ * Every showtime at one theater across the date range, in chronological order.
+ *
+ * Deliberately ignores the time-of-day window: the point of the timeline is to
+ * watch a room fill up across whole days, so clipping it to 5-9pm would leave
+ * holes in the very thing you are scrubbing through.
+ */
+async function timeline(params) {
+  const config = readConfig(params);
+  const dates = dateRange(config.startDate, config.days);
+  const { all, dayErrors } = await collectShowtimes(config, dates);
+
+  const mine = all
+    .filter((s) => s.theaterId === config.theaterId)
+    .sort((a, b) => (a.startsAt?.iso ?? '').localeCompare(b.startsAt?.iso ?? ''));
+
+  return {
+    theater: mine[0]
+      ? { id: mine[0].theaterId, name: mine[0].theaterName, distance: mine[0].distance }
+      : null,
+    dayErrors,
+    showtimes: mine.map((s) => ({
+      key: s.key,
+      date: s.startsAt?.date ?? null,
+      time: s.time,
+      minutes: s.startsAt?.minutes ?? null,
+      iso: s.startsAt?.iso ?? null,
+      format: s.format,
+      amenityString: s.amenityString,
+      ticketUrl: s.ticketUrl,
+      theaterUrl: s.theaterUrl,
+      inWindow: withinWindow(s, config),
+    })),
+  };
+}
+
+/**
+ * One showtime's seat map plus its adjacency analysis, in a single round trip
+ * so scrubbing the timeline does not need two requests per step.
+ */
+async function showtimeDetail(hash, params) {
+  const partySize = clamp(num(params.get('partySize'), 2), 1, 12);
+  const includeAccessible = params.get('includeAccessible') === 'true';
+  const zone = readZone(params);
+
+  const map = await cachedSeatMap(hash);
+  const analysis = findAdjacentRuns(map, partySize, { includeAccessible, zone });
+
+  return {
+    map,
+    analysis: {
+      total: analysis.totalSeats,
+      available: analysis.availableSeats,
+      maxRun: analysis.maxRun,
+      optionCount: analysis.runs.length,
+      zoneRejected: analysis.zoneRejected,
+      bestScore: analysis.runs[0]?.score ?? null,
+      options: analysis.runs.slice(0, 8),
+    },
   };
 }
 
@@ -176,6 +276,8 @@ function readConfig(p) {
     partySize: clamp(num(p.get('partySize'), 2), 1, 12),
     /** 0 = sooner & closer wins, 100 = best seats win. */
     priority: clamp(num(p.get('priority'), 65), 0, 100),
+    /** Restrict results to one theater; empty means all of them. */
+    theaterId: (p.get('theaterId') || '').trim() || null,
     format: format in FORMAT_PRESETS ? format : 'imax-70mm',
     title: (p.get('title') ?? 'Odyssey').trim(),
     includeAccessible: p.get('includeAccessible') === 'true',

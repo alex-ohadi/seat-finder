@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Controls from './components/Controls.jsx';
 import ShowtimeCard from './components/ShowtimeCard.jsx';
 import ZonePicker from './components/ZonePicker.jsx';
+import Timeline from './components/Timeline.jsx';
 import { DEFAULT_CONFIG, search, formatMinutes, formatDateHeading, describeZone } from './api.js';
 import './styles.css';
 
@@ -13,6 +14,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [onlyMatches, setOnlyMatches] = useState(true);
   const [zoneOpen, setZoneOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const inflight = useRef(null);
 
   const run = useCallback(async (config) => {
@@ -36,6 +38,11 @@ export default function App() {
   useEffect(() => {
     run(DEFAULT_CONFIG);
   }, [run]);
+
+  // Picking a theater is the whole reason the timeline exists, so open it.
+  useEffect(() => {
+    setTimelineOpen(Boolean(applied.theaterId));
+  }, [applied.theaterId]);
 
   const showtimes = result?.showtimes ?? [];
   const recommendedKeys = result?.recommended ?? [];
@@ -77,9 +84,11 @@ export default function App() {
         draft={draft}
         setDraft={setDraft}
         loading={loading}
+        theaters={result?.theaters ?? []}
         onSearch={() => run(draft)}
         onReset={() => {
           setDraft(DEFAULT_CONFIG);
+          setTimelineOpen(false);
           run(DEFAULT_CONFIG);
         }}
       />
@@ -109,6 +118,18 @@ export default function App() {
           >
             seats: {describeZone(draft.zone)}
           </button>
+          {applied.theaterId && (
+            <>
+              {' · '}
+              <button
+                type="button"
+                className="linkbtn"
+                onClick={() => setTimelineOpen(!timelineOpen)}
+              >
+                {timelineOpen ? 'hide timeline' : 'scrub seats over time'}
+              </button>
+            </>
+          )}
         </span>
         <label className="checkbox">
           <input
@@ -131,6 +152,14 @@ export default function App() {
             run(next);
           }}
           onClose={() => setZoneOpen(false)}
+        />
+      )}
+
+      {applied.theaterId && timelineOpen && (
+        <Timeline
+          config={applied}
+          theaterId={applied.theaterId}
+          onClose={() => setTimelineOpen(false)}
         />
       )}
 

@@ -380,6 +380,161 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---------- theater timeline ---------- */
+.tl {
+  background: var(--panel);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  border-radius: var(--radius);
+  padding: 16px 18px 8px;
+  margin-bottom: 18px;
+}
+.tl--msg {
+  color: var(--muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.tl--error {
+  color: var(--bad);
+}
+.tl__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.tl__title {
+  margin: 0;
+  font-size: 17px;
+}
+.tl__sub {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tl__now {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.tl__when {
+  display: flex;
+  flex-direction: column;
+  min-width: 92px;
+}
+.tl__when strong {
+  font-size: 21px;
+  line-height: 1.1;
+}
+.tl__when em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--muted);
+}
+.tl__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  flex: 1;
+}
+.tl__stats--muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.tl__stat {
+  display: flex;
+  flex-direction: column;
+  min-width: 62px;
+}
+.tl__stat--wide {
+  min-width: 150px;
+}
+.tl__stat em {
+  font-style: normal;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.tl__stat b {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl__slider {
+  position: relative;
+  /* Bottom padding has to clear the absolutely-positioned day labels, or they
+     collide with the nav buttons that follow. */
+  padding: 18px 0 42px;
+}
+.tl__slider input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  position: relative;
+  z-index: 2;
+}
+.tl__ticks,
+.tl__days {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+.tl__ticks {
+  top: 8px;
+}
+.tl__tick {
+  position: absolute;
+  width: 3px;
+  height: 7px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.tl__tick.is-inwindow {
+  background: var(--good);
+}
+.tl__tick.is-current {
+  background: var(--accent);
+  height: 11px;
+  top: -2px;
+}
+.tl__days {
+  bottom: 18px;
+}
+.tl__day {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tl__nav {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.seatmap--bare {
+  border-top: none;
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* ---------- zone picker ---------- */
 .zone {
   background: var(--panel);

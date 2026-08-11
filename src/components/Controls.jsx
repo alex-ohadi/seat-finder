@@ -1,6 +1,6 @@
 import { FORMATS, formatMinutes, toTimeInput, fromTimeInput } from '../api.js';
 
-export default function Controls({ draft, setDraft, onSearch, loading, onReset }) {
+export default function Controls({ draft, setDraft, onSearch, loading, onReset, theaters = [] }) {
   const set = (key) => (value) => setDraft({ ...draft, [key]: value });
 
   return (
@@ -26,6 +26,24 @@ export default function Controls({ draft, setDraft, onSearch, loading, onReset }
             {FORMATS.map((f) => (
               <option key={f.key} value={f.key}>
                 {f.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          label="Theater"
+          hint={theaters.length ? `${theaters.length} nearby` : 'All'}
+        >
+          <select
+            value={draft.theaterId}
+            onChange={(e) => set('theaterId')(e.target.value)}
+            disabled={theaters.length === 0}
+          >
+            <option value="">All theaters</option>
+            {theaters.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} — {t.distance.toFixed(1)} mi
               </option>
             ))}
           </select>

@@ -5,19 +5,27 @@ import { fetchSeatMap } from '../api.js';
  * Compact seat plan drawn from the raw x/y geometry Fandango returns.
  * Highlights one candidate group so the pair is easy to spot in the room.
  */
-export default function SeatMap({ hash, highlight = [] }) {
-  const [state, setState] = useState({ status: 'loading' });
+/**
+ * Pass `map` when the caller already has the seat data (the timeline fetches
+ * map and analysis together), or `hash` to have this component fetch it.
+ */
+export default function SeatMap({ hash, map: providedMap, highlight = [], bare = false }) {
+  const [state, setState] = useState(providedMap ? { status: 'ready', map: providedMap } : { status: 'loading' });
 
   useEffect(() => {
+    if (providedMap) {
+      setState({ status: 'ready', map: providedMap });
+      return;
+    }
     const controller = new AbortController();
     setState({ status: 'loading' });
     fetchSeatMap(hash, controller.signal)
-      .then((map) => setState({ status: 'ready', map }))
+      .then((m) => setState({ status: 'ready', map: m }))
       .catch((err) => {
         if (err.name !== 'AbortError') setState({ status: 'error', error: err.message });
       });
     return () => controller.abort();
-  }, [hash]);
+  }, [hash, providedMap]);
 
   if (state.status === 'loading') return <div className="seatmap seatmap--msg">Loading seat map…</div>;
   if (state.status === 'error')
@@ -40,7 +48,7 @@ export default function SeatMap({ hash, highlight = [] }) {
   const style = { height, width: (height * vbWidth) / vbHeight, maxWidth: '100%' };
 
   return (
-    <div className="seatmap">
+    <div className={bare ? 'seatmap seatmap--bare' : 'seatmap'}>
       <svg
         viewBox={`${-pad} ${-pad - 18} ${vbWidth} ${vbHeight}`}
         className="seatmap__svg"
