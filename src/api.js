@@ -84,6 +84,16 @@ export function describeZone(zone) {
   return `${depth} ${side}`;
 }
 
+/**
+ * Shift a YYYY-MM-DD date by whole days. Anchored at midday so a daylight
+ * saving change cannot push the result onto the neighbouring date.
+ */
+export function shiftDate(isoDate, days) {
+  const d = new Date(`${isoDate}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function formatDateHeading(isoDate) {
   const d = new Date(`${isoDate}T12:00:00`);
   return d.toLocaleDateString(undefined, {

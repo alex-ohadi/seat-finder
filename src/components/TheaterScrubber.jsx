@@ -20,7 +20,15 @@ const WHY_LABELS = {
  * Collapsed panels fetch nothing at all, which is what keeps a page full of
  * theaters cheap.
  */
-export default function TheaterScrubber({ theater, partySize, rank = null, defaultOpen = false }) {
+export default function TheaterScrubber({
+  theater,
+  partySize,
+  rank = null,
+  defaultOpen = false,
+  onShiftWeek = null,
+  canGoEarlier = false,
+  windowDays = 7,
+}) {
   const [open, setOpen] = useState(defaultOpen);
   const [index, setIndex] = useState(theater.bestIndex ?? 0);
   const [map, setMap] = useState(null);
@@ -174,12 +182,19 @@ export default function TheaterScrubber({ theater, partySize, rank = null, defau
             <p className="ts__single">Only one showing here in your window.</p>
           )}
 
+          {/* The slider moves within the loaded range; these page to the next
+              one, since scrubbing to the end used to be a dead stop. */}
           <div className="tl__nav">
             <button
               type="button"
               className="btn btn--ghost btn--sm"
-              onClick={() => setIndex(Math.max(0, index - 1))}
-              disabled={index === 0}
+              onClick={() => onShiftWeek?.(-1)}
+              disabled={!onShiftWeek || !canGoEarlier}
+              title={
+                canGoEarlier
+                  ? `Load the previous ${windowDays} days`
+                  : 'Already showing from today'
+              }
             >
               ← Earlier
             </button>
@@ -203,8 +218,9 @@ export default function TheaterScrubber({ theater, partySize, rank = null, defau
             <button
               type="button"
               className="btn btn--ghost btn--sm"
-              onClick={() => setIndex(Math.min(showtimes.length - 1, index + 1))}
-              disabled={index === showtimes.length - 1}
+              onClick={() => onShiftWeek?.(1)}
+              disabled={!onShiftWeek}
+              title={`Load the next ${windowDays} days`}
             >
               Later →
             </button>

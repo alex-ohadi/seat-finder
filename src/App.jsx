@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Controls from './components/Controls.jsx';
 import TheaterScrubber from './components/TheaterScrubber.jsx';
 import ZonePicker from './components/ZonePicker.jsx';
-import { DEFAULT_CONFIG, search, formatMinutes, describeZone } from './api.js';
+import {
+  DEFAULT_CONFIG,
+  search,
+  formatMinutes,
+  describeZone,
+  shiftDate,
+  localToday,
+  formatDateHeading,
+} from './api.js';
 import './styles.css';
 
 export default function App() {
@@ -35,6 +43,30 @@ export default function App() {
   useEffect(() => {
     run(DEFAULT_CONFIG);
   }, [run]);
+
+  /**
+   * Page the whole search forward or back by a week. The slider moves within
+   * the loaded range; these jump to the next one. Never pages before today,
+   * since past showings cannot be booked.
+   */
+  const shiftWeek = useCallback(
+    (delta) => {
+      // Pages off `draft`, not `applied`: applied only catches up once the
+      // search resolves, so paging twice in a row would compute the second
+      // jump from the date you already left.
+      const today = localToday();
+      const next = shiftDate(draft.startDate, delta * draft.days);
+      const startDate = next < today ? today : next;
+      if (startDate === draft.startDate) return;
+      const config = { ...draft, startDate };
+      setDraft(config);
+      run(config);
+    },
+    [draft, run],
+  );
+
+  const atToday = draft.startDate <= localToday();
+  const rangeEnd = shiftDate(applied.startDate, applied.days - 1);
 
   const showtimes = result?.showtimes ?? [];
   const minScore = result?.stats?.minRecommendableSeatScore ?? 25;
@@ -109,7 +141,10 @@ export default function App() {
             seats: {describeZone(draft.zone)}
           </button>
         </span>
-        <span className="resultbar__hint">Every theater below scrubs across all dates</span>
+        <span className="resultbar__hint">
+          Showing {formatDateHeading(applied.startDate)} – {formatDateHeading(rangeEnd)} · drag to
+          move within it, Earlier/Later to change week
+        </span>
       </div>
 
       {zoneOpen && zoneSample && (
@@ -157,6 +192,9 @@ export default function App() {
                 partySize={applied.partySize}
                 rank={i + 1}
                 defaultOpen={i === 0}
+                onShiftWeek={shiftWeek}
+                canGoEarlier={!atToday}
+                windowDays={applied.days}
               />
             ))}
           </section>
@@ -173,7 +211,14 @@ export default function App() {
               </span>
             </h2>
             {otherTheaters.map((t) => (
-              <TheaterScrubber key={t.id} theater={t} partySize={applied.partySize} />
+              <TheaterScrubber
+                key={t.id}
+                theater={t}
+                partySize={applied.partySize}
+                onShiftWeek={shiftWeek}
+                canGoEarlier={!atToday}
+                windowDays={applied.days}
+              />
             ))}
           </section>
         )}

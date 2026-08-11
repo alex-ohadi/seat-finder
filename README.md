@@ -103,6 +103,11 @@ under the slider mark each showing; green ones are inside your window.
 Seat maps are cached per step and the neighbouring steps are prefetched, so a
 slow drag stays continuous instead of flashing through loading states.
 
+The slider moves **within** the loaded range; **Earlier / Later** page the whole
+search to the previous or next range, so scrubbing to the end is no longer a
+dead stop. Paging never goes back past today, since past showings cannot be
+booked.
+
 ## Recommendations
 
 The top three are scored on seat quality, distance, closeness to the middle of
