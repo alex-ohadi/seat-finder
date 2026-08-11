@@ -35,10 +35,18 @@ export default function TheaterScrubber({
   const [mapError, setMapError] = useState(null);
   const cache = useRef(new Map());
 
+  const [pickIndex, setPickIndex] = useState(0);
+
   const showtimes = theater.showtimes;
   const current = showtimes[index] ?? showtimes[0];
   const seats = current?.seats;
-  const best = seats?.options?.[0];
+  const options = seats?.options ?? [];
+  // Every step has its own seats, so a pick from the previous one is meaningless.
+  const best = options[pickIndex] ?? options[0];
+
+  useEffect(() => {
+    setPickIndex(0);
+  }, [current?.key]);
 
   useEffect(() => {
     setIndex((i) => Math.min(i, Math.max(0, showtimes.length - 1)));
@@ -209,9 +217,10 @@ export default function TheaterScrubber({
             )}
             <a
               className="btn btn--primary btn--sm"
-              href={current.theaterUrl ?? current.ticketUrl}
+              href={current.seatUrl ?? current.theaterUrl ?? current.ticketUrl}
               target="_blank"
               rel="noreferrer"
+              title={`Seat picker for ${current.time} on ${current.startsAt?.date}`}
             >
               Tickets
             </a>
@@ -228,10 +237,38 @@ export default function TheaterScrubber({
 
           {best && (
             <p className="card__ask">
-              Ask for / select <strong>{best.seats.join(' and ')}</strong> — row {best.row},{' '}
-              {current.time} on {formatDateHeading(current.startsAt?.date)}
+              Pick area <strong>{best.area ?? 'Reserved'}</strong>, then seats{' '}
+              <strong>{best.seats.join(' and ')}</strong> — row {best.row}, {current.time} on{' '}
+              {formatDateHeading(current.startsAt?.date)}
+              {priceOf(current, best) && (
+                <span className="card__price">
+                  {priceOf(current, best)} ea
+                  {current.fee ? ` + $${current.fee.toFixed(2)} fee` : ''}
+                </span>
+              )}
             </p>
           )}
+          {options.length > 1 && (
+            <div className="picks">
+              {options.slice(0, 6).map((opt, i) => (
+                <button
+                  key={opt.seats.join('-')}
+                  type="button"
+                  className={`pick ${i === pickIndex ? 'pick--active' : ''}`}
+                  onClick={() => setPickIndex(i)}
+                  title={`Seat quality ${opt.score}/100${opt.area ? ` · ${opt.area}` : ''}`}
+                >
+                  <span className="pick__row">
+                    Row {opt.row}
+                    {opt.area ? ` · ${opt.area}` : ''}
+                    <em className="pick__score">{opt.score}</em>
+                  </span>
+                  <span className="pick__seats">{opt.seats.join(', ')}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {seats?.accessibleAlternative && (
             <p className="card__note">
               Better seats exist in row {seats.accessibleAlternative.row} (
@@ -272,6 +309,13 @@ export default function TheaterScrubber({
       )}
     </article>
   );
+}
+
+/** Price for the area the chosen seats sit in, falling back to the showing's. */
+function priceOf(showtime, run) {
+  const area = showtime.areas?.find((a) => a.code === run?.areaCode);
+  const price = area?.price ?? showtime.price;
+  return price ? `$${price.toFixed(2)}` : null;
 }
 
 function badgeClass(score) {

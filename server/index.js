@@ -116,9 +116,23 @@ async function search(params) {
           accessibleAlternative = { seats: better.seats, row: better.row, score: better.score };
         }
       }
+      // Price lives in the seat map, per area — no extra request needed.
+      const areas = (seatMap.areas ?? []).map((a) => ({
+        code: a.code,
+        name: a.name,
+        available: a.availableSeatCount,
+        total: a.totalSeatCount,
+        price: a.ticketInfo?.[0]?.price ? Number(a.ticketInfo[0].price) : null,
+        fee: a.ticketInfo?.[0]?.fee ? Number(a.ticketInfo[0].fee) : null,
+      }));
+      const bestArea = areas.find((a) => a.code === analysis.runs[0]?.areaCode) ?? null;
+
       return {
         ...showtime,
         auditorium: seatMap.auditoriumId ?? null,
+        areas,
+        price: bestArea?.price ?? null,
+        fee: bestArea?.fee ?? null,
         seats: {
           total: analysis.totalSeats,
           available: analysis.availableSeats,

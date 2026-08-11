@@ -128,6 +128,17 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
             if (showtime.expired) continue;
             if (!showtime.showtimeHashCode) continue;
 
+            const seatUrl = seatSelectionUrl({
+              showtimeId: showtime.id,
+              // The format-specific id, not movie.id: "The Odyssey" is 241283
+              // but its IMAX 70MM presentation is 241386, and the seat picker
+              // wants the presentation.
+              variantId: group.movieVariantId ?? movie.id,
+              chainCode: theater.chainCode,
+              theaterId: theater.id,
+              ticketingDate: showtime.ticketingDate,
+            });
+
             rows.push({
               key: showtime.showtimeHashCode,
               movieId: movie.id,
@@ -143,6 +154,7 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
               // an empty "Choose Seats" screen. The theater page still loads,
               // so it is the link worth putting in front of someone.
               theaterUrl: theater.theaterPageUrl ? `${ORIGIN}${theater.theaterPageUrl}` : null,
+              seatUrl,
               address: theater.fullAddress,
               distance: theater.distance,
               format: variant.filmFormatHeader,
@@ -159,6 +171,36 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
   }
 
   return rows;
+}
+
+/**
+ * A direct link to the seat picker for one specific showtime.
+ *
+ * Fandango's own showtime links go through /transaction/ticketing/mobile/
+ * jump.aspx, which lands on `route=map-seat-map` — a page whose data call 404s
+ * for these chains, leaving an empty "Choose Seats" screen. Building the
+ * seatselection URL directly with `route=map-seating-areas` reaches the picker
+ * that works, and lands on the exact showing rather than the theater's page.
+ */
+function seatSelectionUrl({ showtimeId, variantId, chainCode, theaterId, ticketingDate }) {
+  if (!showtimeId || !theaterId || typeof ticketingDate !== 'string') return null;
+
+  // ticketingDate is "2026-08-20+19:15". The "+" is a literal space in the
+  // query string and the colon has to be escaped, so encodeURIComponent (which
+  // would turn "+" into "%2B") is exactly wrong here.
+  const [date, time] = ticketingDate.split('+');
+  if (!date || !time) return null;
+  const sdate = `${date}+${time.replace(':', '%3A')}`;
+
+  const params = [
+    `row_count=${showtimeId}`,
+    `mid=${variantId}`,
+    `chainCode=${encodeURIComponent(chainCode ?? '')}`,
+    `sdate=${sdate}`,
+    `tid=${encodeURIComponent(theaterId)}`,
+    `route=map-seating-areas`,
+  ];
+  return `https://tickets.fandango.com/mobileexpress/seatselection?${params.join('&')}`;
 }
 
 /** "2026-08-11+19:00" -> { date: "2026-08-11", minutes: 1140 } */

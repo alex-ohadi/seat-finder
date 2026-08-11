@@ -219,6 +219,10 @@ export function findAdjacentRuns(
   const right = buildRightwardAdjacency(seatMap);
   const positions = normalisePositions(seatMap);
 
+  // Rooms can be split into areas (Reserved / Balcony), and checkout makes you
+  // pick one before it shows any seats — so a seat id alone is not actionable.
+  const areaNames = new Map((seatMap?.areas ?? []).map((a) => [a.code, a.name]));
+
   const left = new Map();
   for (const [from, to] of right) left.set(to, from);
 
@@ -277,6 +281,8 @@ export function findAdjacentRuns(
         columns: window.map((s) => s.column ?? null),
         types: [...new Set(window.map((s) => s.type))],
         blockSize: block.length,
+        areaCode: window[0].areaCode ?? null,
+        area: areaNames.get(window[0].areaCode) ?? null,
         score: scoreSeats(positions, ids),
       });
     }
@@ -286,7 +292,9 @@ export function findAdjacentRuns(
 
   return {
     runs,
-    totalSeats: seats.length,
+    // Prefer the payload's own count: the seats array carries a few
+    // non-sellable placeholders that Fandango excludes from its totals.
+    totalSeats: seatMap?.totalSeatCount ?? seats.length,
     availableSeats: seats.filter((s) => s.status === AVAILABLE).length,
     maxRun,
     zoneRejected,
