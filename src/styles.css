@@ -558,6 +558,24 @@ body {
   color: var(--warn);
 }
 
+.card__ask {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.card__ask strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.card__deeplink {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  text-decoration: underline dotted;
+}
+.card__deeplink:hover {
+  color: var(--warn);
+}
 .card__note {
   margin: 6px 0 0;
   font-size: 12px;

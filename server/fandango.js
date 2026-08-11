@@ -138,6 +138,11 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
               theaterName: theater.name,
               theaterId: theater.id,
               chain: theater.chainName,
+              // Fandango only publishes a *mobile* checkout deep link for these
+              // chains, and that page's own data call 404s — it strands you on
+              // an empty "Choose Seats" screen. The theater page still loads,
+              // so it is the link worth putting in front of someone.
+              theaterUrl: theater.theaterPageUrl ? `${ORIGIN}${theater.theaterPageUrl}` : null,
               address: theater.fullAddress,
               distance: theater.distance,
               format: variant.filmFormatHeader,

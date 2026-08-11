@@ -56,6 +56,12 @@ export default function ShowtimeCard({ showtime, partySize, rank = null, showDat
                   tick the box above to include them.
                 </p>
               )}
+              {picked && (
+                <p className="card__ask">
+                  Ask for / select <strong>{picked.seats.join(' and ')}</strong> — row {picked.row},{' '}
+                  {showtime.theaterName}, {showtime.time}
+                </p>
+              )}
               <div className="picks">
                 {options.slice(0, 6).map((opt, i) => (
                   <button
@@ -89,13 +95,30 @@ export default function ShowtimeCard({ showtime, partySize, rank = null, showDat
 
         <div className="card__actions">
           <Availability seats={seats} />
-          <a className="btn btn--primary btn--sm" href={showtime.ticketUrl} target="_blank" rel="noreferrer">
+          <a
+            className="btn btn--primary btn--sm"
+            href={showtime.theaterUrl ?? showtime.ticketUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="Opens this theater's page on Fandango"
+          >
             Tickets
           </a>
           {seats && (
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(!open)}>
               {open ? 'Hide map' : 'Seat map'}
             </button>
+          )}
+          {showtime.theaterUrl && (
+            <a
+              className="card__deeplink"
+              href={showtime.ticketUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Fandango's mobile checkout. It often fails to load its seat map and strands you on an empty Choose Seats screen."
+            >
+              Direct checkout ⚠
+            </a>
           )}
         </div>
       </div>
