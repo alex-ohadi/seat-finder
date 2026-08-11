@@ -127,10 +127,19 @@ async function search(params) {
       }));
       const bestArea = areas.find((a) => a.code === analysis.runs[0]?.areaCode) ?? null;
 
+      // Where "Tickets" should actually go. Fandango's checkout seat map
+      // (route=map-seat-map) answers "not found" for these chains no matter
+      // what — even after choosing an area through its own UI — so the only
+      // page that renders is the area picker, and only when there is more than
+      // one area to pick. For a single-area room that page comes up blank, so
+      // the theater page is the least-bad landing spot.
+      const bookUrl = areas.length > 1 ? (showtime.seatUrl ?? showtime.theaterUrl) : showtime.theaterUrl;
+
       return {
         ...showtime,
         auditorium: seatMap.auditoriumId ?? null,
         areas,
+        bookUrl,
         price: bestArea?.price ?? null,
         fee: bestArea?.fee ?? null,
         seats: {

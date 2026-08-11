@@ -217,10 +217,14 @@ export default function TheaterScrubber({
             )}
             <a
               className="btn btn--primary btn--sm"
-              href={current.seatUrl ?? current.theaterUrl ?? current.ticketUrl}
+              href={current.bookUrl ?? current.theaterUrl ?? current.ticketUrl}
               target="_blank"
               rel="noreferrer"
-              title={`Seat picker for ${current.time} on ${current.startsAt?.date}`}
+              title={
+                (current.areas?.length ?? 0) > 1
+                  ? `Fandango asks you to pick an area first — choose ${best?.area ?? 'the right area'}`
+                  : `${current.theaterName} on Fandango`
+              }
             >
               Tickets
             </a>
@@ -237,7 +241,13 @@ export default function TheaterScrubber({
 
           {best && (
             <p className="card__ask">
-              Pick area <strong>{best.area ?? 'Reserved'}</strong>, then seats{' '}
+              {(current.areas?.length ?? 0) > 1 ? (
+                <>
+                  Fandango asks for an area first — pick <strong>{best.area}</strong>, then seats{' '}
+                </>
+              ) : (
+                <>Ask for / select </>
+              )}
               <strong>{best.seats.join(' and ')}</strong> — row {best.row}, {current.time} on{' '}
               {formatDateHeading(current.startsAt?.date)}
               {priceOf(current, best) && (
