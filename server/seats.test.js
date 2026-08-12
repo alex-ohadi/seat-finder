@@ -18,6 +18,7 @@ import {
   normalisePositions,
   scoreSeats,
   IDEAL_DEPTH,
+  upstairsAreaCodes,
 } from './seats.js';
 
 const PITCH = 29.5;
@@ -368,6 +369,30 @@ test('neither seating area is structurally advantaged over the other', () => {
     bestOrchestra > worstBalcony,
     `a good orchestra seat ${bestOrchestra} must beat a bad balcony seat ${worstBalcony}`,
   );
+});
+
+test('the balcony can be excluded entirely', () => {
+  const map = twoAreaHouse();
+  const upstairs = upstairsAreaCodes(map);
+  assert.deepEqual(upstairs, ['reserved2'], 'matched on the area name, not the opaque code');
+
+  const all = findAdjacentRuns(map, 2);
+  assert.ok(all.runs.some((r) => r.area === 'Balcony'), 'balcony is offered by default');
+
+  const floorOnly = findAdjacentRuns(map, 2, { excludeAreaCodes: upstairs });
+  assert.ok(floorOnly.runs.length > 0, 'the floor still has options');
+  assert.ok(
+    floorOnly.runs.every((r) => r.area === 'Reserved'),
+    `every run must be on the floor, got ${[...new Set(floorOnly.runs.map((r) => r.area))]}`,
+  );
+});
+
+test('excluding an area cannot bridge a run across the gap it leaves', () => {
+  // Excluded seats must be unusable, not merely unranked, or a "run" could be
+  // stitched through them.
+  const map = twoAreaHouse();
+  const { runs } = findAdjacentRuns(map, 2, { excludeAreaCodes: ['reserved2'] });
+  assert.ok(runs.every((r) => r.seats.every((id) => !id.startsWith('B'))));
 });
 
 test('runs report the seating area you must choose at checkout', () => {

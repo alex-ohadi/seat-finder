@@ -155,6 +155,7 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
               // so it is the link worth putting in front of someone.
               theaterUrl: theater.theaterPageUrl ? `${ORIGIN}${theater.theaterPageUrl}` : null,
               seatUrl,
+              chainSite: chainSiteFor(theater.chainCode),
               address: theater.fullAddress,
               distance: theater.distance,
               format: variant.filmFormatHeader,
@@ -171,6 +172,24 @@ export function extractShowtimes(theaters, { titleMatch, formatKey, maxDistance 
   }
 
   return rows;
+}
+
+/**
+ * Where to actually buy when Fandango's own checkout will not complete.
+ * Fandango's seat picker answers "not found" for these chains — both routes,
+ * and after choosing a seating area through its own UI — so the chain's site
+ * is the only route to a real purchase.
+ */
+const CHAIN_SITES = {
+  REGL: { name: 'Regal', url: 'https://www.regmovies.com/' },
+  AMC: { name: 'AMC', url: 'https://www.amctheatres.com/' },
+  CNMK: { name: 'Cinemark', url: 'https://www.cinemark.com/' },
+  CHNS: { name: 'TCL Chinese Theatres', url: 'https://www.tclchinesetheatres.com/' },
+  ALAM: { name: 'Alamo Drafthouse', url: 'https://drafthouse.com/' },
+};
+
+export function chainSiteFor(chainCode) {
+  return CHAIN_SITES[chainCode] ?? null;
 }
 
 /**

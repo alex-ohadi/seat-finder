@@ -133,14 +133,24 @@ export default function Controls({ draft, setDraft, onSearch, loading, onReset, 
       </div>
 
       <div className="controls__footer">
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={draft.includeAccessible}
-            onChange={(e) => set('includeAccessible')(e.target.checked)}
-          />
-          <span>Include wheelchair &amp; companion seats</span>
-        </label>
+        <div className="controls__checks">
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={draft.includeAccessible}
+              onChange={(e) => set('includeAccessible')(e.target.checked)}
+            />
+            <span>Include wheelchair &amp; companion seats</span>
+          </label>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={draft.avoidBalcony}
+              onChange={(e) => set('avoidBalcony')(e.target.checked)}
+            />
+            <span>Floor seats only (no balcony)</span>
+          </label>
+        </div>
 
         <div className="controls__actions">
           <button type="button" className="btn btn--ghost" onClick={onReset}>

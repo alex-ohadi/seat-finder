@@ -168,6 +168,14 @@ body {
   display: flex;
   gap: 8px;
 }
+.controls__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.card__note a {
+  color: inherit;
+}
 
 .checkbox {
   display: flex;

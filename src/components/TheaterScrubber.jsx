@@ -217,12 +217,12 @@ export default function TheaterScrubber({
             )}
             <a
               className="btn btn--primary btn--sm"
-              href={current.bookUrl ?? current.theaterUrl ?? current.ticketUrl}
+              href={current.chainSite?.url ?? current.bookUrl ?? current.theaterUrl}
               target="_blank"
               rel="noreferrer"
               title={
-                (current.areas?.length ?? 0) > 1
-                  ? `Fandango asks you to pick an area first — choose ${best?.area ?? 'the right area'}`
+                current.chainSite
+                  ? `Buy on ${current.chainSite.name}'s own site — Fandango's seat picker is erroring`
                   : `${current.theaterName} on Fandango`
               }
             >
@@ -241,13 +241,7 @@ export default function TheaterScrubber({
 
           {best && (
             <p className="card__ask">
-              {(current.areas?.length ?? 0) > 1 ? (
-                <>
-                  Fandango asks for an area first — pick <strong>{best.area}</strong>, then seats{' '}
-                </>
-              ) : (
-                <>Ask for / select </>
-              )}
+              Ask for{best.area ? ` the ${best.area} area,` : ''} seats{' '}
               <strong>{best.seats.join(' and ')}</strong> — row {best.row}, {current.time} on{' '}
               {formatDateHeading(current.startsAt?.date)}
               {priceOf(current, best) && (
@@ -277,6 +271,17 @@ export default function TheaterScrubber({
                 </button>
               ))}
             </div>
+          )}
+
+          {current.chainSite && (
+            <p className="card__note">
+              Fandango’s seat picker errors out on these showings (“not found”), even after picking
+              a seating area. Buy on{' '}
+              <a href={current.chainSite.url} target="_blank" rel="noreferrer">
+                {current.chainSite.name}
+              </a>{' '}
+              or at the box office using the seats above.
+            </p>
           )}
 
           {seats?.accessibleAlternative && (

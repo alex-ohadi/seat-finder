@@ -19,7 +19,7 @@ import {
   extractShowtimes,
   FORMAT_PRESETS,
 } from './fandango.js';
-import { findAdjacentRuns } from './seats.js';
+import { findAdjacentRuns, upstairsAreaCodes } from './seats.js';
 
 // Deliberately not PORT: the dev harness sets PORT for the web server, and the
 // API stealing it pushes Vite onto a different port than the one being previewed.
@@ -98,9 +98,11 @@ async function search(params) {
   const analysed = await mapWithConcurrency(inWindow, 6, async (showtime) => {
     try {
       const seatMap = await cachedSeatMap(showtime.key);
+      const excludeAreaCodes = config.avoidBalcony ? upstairsAreaCodes(seatMap) : null;
       const analysis = findAdjacentRuns(seatMap, config.partySize, {
         includeAccessible: config.includeAccessible,
         zone: config.zone,
+        excludeAreaCodes,
       });
 
       // Accessible spaces often sit in the best part of the room. When they are
@@ -110,6 +112,7 @@ async function search(params) {
         const withAccessible = findAdjacentRuns(seatMap, config.partySize, {
           includeAccessible: true,
           zone: config.zone,
+          excludeAreaCodes,
         });
         const better = withAccessible.runs[0];
         if (better && better.score > (analysis.runs[0]?.score ?? 0) + 5) {
@@ -127,13 +130,12 @@ async function search(params) {
       }));
       const bestArea = areas.find((a) => a.code === analysis.runs[0]?.areaCode) ?? null;
 
-      // Where "Tickets" should actually go. Fandango's checkout seat map
-      // (route=map-seat-map) answers "not found" for these chains no matter
-      // what — even after choosing an area through its own UI — so the only
-      // page that renders is the area picker, and only when there is more than
-      // one area to pick. For a single-area room that page comes up blank, so
-      // the theater page is the least-bad landing spot.
-      const bookUrl = areas.length > 1 ? (showtime.seatUrl ?? showtime.theaterUrl) : showtime.theaterUrl;
+      // Where "Tickets" should actually go. Fandango's checkout cannot complete
+      // for these chains: route=map-seat-map answers "not found", and so does
+      // the area picker once you choose Reserved or Balcony and continue. The
+      // theater page at least loads; the chain's own site is where a purchase
+      // can actually be finished.
+      const bookUrl = showtime.theaterUrl ?? showtime.seatUrl;
 
       return {
         ...showtime,
@@ -232,6 +234,8 @@ function readConfig(p) {
     priority: clamp(num(p.get('priority'), 65), 0, 100),
     /** Restrict results to one theater; empty means all of them. */
     theaterId: (p.get('theaterId') || '').trim() || null,
+    /** Skip balcony/mezzanine areas entirely. */
+    avoidBalcony: p.get('avoidBalcony') === 'true',
     format: format in FORMAT_PRESETS ? format : 'imax-70mm',
     title: (p.get('title') ?? 'Odyssey').trim(),
     includeAccessible: p.get('includeAccessible') === 'true',

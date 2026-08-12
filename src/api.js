@@ -27,6 +27,8 @@ export const DEFAULT_CONFIG = {
   priority: 65,
   format: 'imax-70mm',
   includeAccessible: false,
+  /** Skip balcony/mezzanine areas entirely. */
+  avoidBalcony: false,
   /** Restrict to one theater; '' means all of them. */
   theaterId: '',
   /** Preferred area in normalised 0..1 coords, or null for "anywhere". */

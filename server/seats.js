@@ -186,6 +186,19 @@ export function scoreSeats(positions, seatIds) {
  * ------------------------------------------------------------------ */
 
 /**
+ * Area codes for anything upstairs. Matched on the human-readable name because
+ * the codes are opaque and chain-specific ("reserved2" is the balcony at Regal
+ * LA Live), while the names are what checkout shows you.
+ */
+const UPSTAIRS_NAME = /balcony|mezzanine|upper|loge/i;
+
+export function upstairsAreaCodes(seatMap) {
+  return (seatMap?.areas ?? [])
+    .filter((a) => UPSTAIRS_NAME.test(a.name ?? ''))
+    .map((a) => a.code);
+}
+
+/**
  * Map each seat to the seat immediately on its right, merging both signals.
  * @returns {Map<string, string>} seat id -> seat id to its right
  */
@@ -242,12 +255,15 @@ export function buildRightwardAdjacency(seatMap) {
  * @param {?{x0:number,y0:number,x1:number,y1:number}} [opts.zone]
  *        preferred area in normalised 0..1 coordinates; every seat in a run
  *        must fall inside it
+ * @param {Set<string>|string[]} [opts.excludeAreaCodes] seating areas to skip
+ *        entirely, e.g. the balcony
  */
 export function findAdjacentRuns(
   seatMap,
   partySize,
-  { includeAccessible = false, zone = null } = {},
+  { includeAccessible = false, zone = null, excludeAreaCodes = null } = {},
 ) {
+  const excluded = excludeAreaCodes ? new Set(excludeAreaCodes) : null;
   const seats = seatMap?.seats ?? [];
   const byId = new Map(seats.map((s) => [s.id, s]));
   const right = buildRightwardAdjacency(seatMap);
@@ -263,6 +279,7 @@ export function findAdjacentRuns(
   const usable = (seat) => {
     if (!seat || seat.status !== AVAILABLE) return false;
     if (!includeAccessible && ACCESSIBLE_TYPES.has(seat.type)) return false;
+    if (excluded?.has(seat.areaCode)) return false;
     return true;
   };
 
