@@ -9,6 +9,30 @@ npm install
 npm run dev        # web on :5173, scraper API on :8787
 ```
 
+> ### Unofficial, and meant for personal use
+>
+> Not affiliated with, endorsed by, or connected to Fandango or any cinema
+> chain. It reads the same undocumented JSON endpoints fandango.com's own
+> front-end calls — no login, no API key, no scraping of anything behind an
+> account.
+>
+> Those endpoints answer `403` to a request that does not look like a browser,
+> so the client sends an ordinary browser header set. That is enough to be
+> served, but it is still a bot filter being stepped around, and automated
+> access is very likely against Fandango's Terms of Service. **Check the ToS and
+> decide for yourself before running this.** Personal, low-volume use is the
+> only thing it was written for.
+>
+> Please keep it gentle. The client already caches seat maps for 60s and
+> showtime lists for 5 minutes, caps itself at 6 concurrent requests, backs off
+> exponentially and times out at 20s. Those limits are the difference between
+> reading a page like a person and hammering someone's servers — don't remove
+> them, and don't point this at a schedule.
+>
+> Undocumented endpoints change without notice, so expect this to break. Seat
+> inventory is live and moves minute to minute; treat anything here as a
+> starting point, not a guarantee. No warranty of any kind.
+
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Both servers, with cleanup when either exits |
@@ -26,8 +50,8 @@ API, no key, and no headless browser involved:
 | `GET /napi/theaterswithshowtimes?zipCode=&date=&page=&limit=` | Theaters near a ZIP, with distance, formats and showtimes |
 | `GET /napi/seatMap/<showtimeHashCode>` | Live seat map: every seat with status, type and geometry |
 
-This app exposes them as `/api/search`, `/api/timeline` (one theater across
-days), `/api/showtime/:hash` (map + analysis in one trip) and `/api/seatmap/:hash`.
+This app exposes them as `/api/search` (showtimes with seat analysis, grouped
+into theaters) and `/api/seatmap/:hash` (one raw seat map, for drawing).
 
 The two join on `showtimeHashCode`, which the showtimes response already
 carries — no scraping of HTML, and no ticket-flow session to establish.
